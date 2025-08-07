@@ -1,3 +1,16 @@
+-- Drop existing triggers and functions first to avoid conflicts
+DROP TRIGGER IF EXISTS update_inventory_items_updated_at ON inventory_items;
+DROP TRIGGER IF EXISTS update_receive_orders_updated_at ON receive_orders;
+DROP TRIGGER IF EXISTS update_withdrawals_updated_at ON withdrawals;
+DROP TRIGGER IF EXISTS update_pricing_rules_updated_at ON pricing_rules;
+DROP TRIGGER IF EXISTS update_suppliers_updated_at ON suppliers;
+DROP TRIGGER IF EXISTS update_expense_reports_updated_at ON expense_reports;
+DROP TRIGGER IF EXISTS update_job_expenses_updated_at ON job_expenses;
+
+DROP FUNCTION IF EXISTS update_updated_at_column();
+DROP FUNCTION IF EXISTS decrease_inventory(UUID, INTEGER);
+DROP FUNCTION IF EXISTS increase_inventory(UUID, INTEGER);
+
 -- Create tables for Inventory Module
 CREATE TABLE IF NOT EXISTS inventory_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -28,7 +41,8 @@ CREATE TABLE IF NOT EXISTS receive_orders (
   supplier TEXT NOT NULL,
   notes TEXT,
   total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS receive_order_items (
@@ -48,7 +62,8 @@ CREATE TABLE IF NOT EXISTS withdrawals (
   notes TEXT,
   date DATE NOT NULL,
   total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS withdrawal_items (
@@ -68,7 +83,8 @@ CREATE TABLE IF NOT EXISTS pricing_rules (
   markup_percentage DECIMAL(5,2) NOT NULL,
   minimum_price DECIMAL(10,2),
   maximum_price DECIMAL(10,2),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS item_categories (
@@ -85,7 +101,8 @@ CREATE TABLE IF NOT EXISTS suppliers (
   email TEXT,
   phone TEXT,
   address TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS item_pricing (
@@ -102,22 +119,22 @@ CREATE TABLE IF NOT EXISTS item_pricing (
 -- Create tables for Transactions Module
 CREATE TABLE IF NOT EXISTS expense_reports (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  report_date DATE NOT NULL,
   period_start DATE NOT NULL,
   period_end DATE NOT NULL,
   total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'submitted', 'approved', 'rejected')),
+  status TEXT NOT NULL DEFAULT 'draft',
   notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS expense_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   expense_report_id UUID REFERENCES expense_reports(id) ON DELETE CASCADE,
-  transaction_id UUID REFERENCES inventory_transactions(id) ON DELETE CASCADE,
-  amount DECIMAL(10,2) NOT NULL,
   description TEXT NOT NULL,
-  category TEXT NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  category TEXT,
+  date DATE NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -127,8 +144,7 @@ CREATE TABLE IF NOT EXISTS transaction_summaries (
   period_end DATE NOT NULL,
   total_received DECIMAL(10,2) NOT NULL DEFAULT 0,
   total_withdrawn DECIMAL(10,2) NOT NULL DEFAULT 0,
-  net_change DECIMAL(10,2) NOT NULL DEFAULT 0,
-  item_count INTEGER NOT NULL DEFAULT 0,
+  total_expenses DECIMAL(10,2) NOT NULL DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -136,18 +152,19 @@ CREATE TABLE IF NOT EXISTS expense_categories (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   description TEXT,
-  budget_limit DECIMAL(10,2),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS job_expenses (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   job_name TEXT NOT NULL,
-  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  item_count INTEGER NOT NULL DEFAULT 0,
-  period_start DATE NOT NULL,
-  period_end DATE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  expense_date DATE NOT NULL,
+  description TEXT NOT NULL,
+  amount DECIMAL(10,2) NOT NULL,
+  category TEXT,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- Create indexes for better performance
@@ -160,7 +177,7 @@ CREATE INDEX IF NOT EXISTS idx_receive_orders_date ON receive_orders(order_date)
 CREATE INDEX IF NOT EXISTS idx_expense_reports_period ON expense_reports(period_start, period_end);
 CREATE INDEX IF NOT EXISTS idx_job_expenses_job_name ON job_expenses(job_name);
 
--- Create functions for automatic updates
+-- Create helper functions
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -169,33 +186,51 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
+-- Create triggers for updated_at columns
 CREATE TRIGGER update_inventory_items_updated_at BEFORE UPDATE ON inventory_items
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Function to decrease inventory quantity
+CREATE TRIGGER update_receive_orders_updated_at BEFORE UPDATE ON receive_orders
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_withdrawals_updated_at BEFORE UPDATE ON withdrawals
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_pricing_rules_updated_at BEFORE UPDATE ON pricing_rules
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_suppliers_updated_at BEFORE UPDATE ON suppliers
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_expense_reports_updated_at BEFORE UPDATE ON expense_reports
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_job_expenses_updated_at BEFORE UPDATE ON job_expenses
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Create inventory management functions
 CREATE OR REPLACE FUNCTION decrease_inventory(item_id UUID, amount INTEGER)
 RETURNS VOID AS $$
 BEGIN
-  UPDATE inventory_items 
-  SET quantity = quantity - amount 
-  WHERE id = item_id AND quantity >= amount;
-  
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Item not found or insufficient quantity';
-  END IF;
+    UPDATE inventory_items 
+    SET quantity = quantity - amount 
+    WHERE id = item_id;
+    
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Inventory item not found';
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to increase inventory quantity
 CREATE OR REPLACE FUNCTION increase_inventory(item_id UUID, amount INTEGER)
 RETURNS VOID AS $$
 BEGIN
-  UPDATE inventory_items 
-  SET quantity = quantity + amount 
-  WHERE id = item_id;
-  
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Item not found';
-  END IF;
+    UPDATE inventory_items 
+    SET quantity = quantity + amount 
+    WHERE id = item_id;
+    
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'Inventory item not found';
+    END IF;
 END;
 $$ LANGUAGE plpgsql; 
