@@ -1,6 +1,3 @@
--- Enable Row Level Security
-ALTER DATABASE postgres SET "app.jwt_secret" TO 'your-jwt-secret';
-
 -- Create tables for Inventory Module
 CREATE TABLE IF NOT EXISTS inventory_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -201,10 +198,4 @@ BEGIN
     RAISE EXCEPTION 'Item not found';
   END IF;
 END;
-$$ LANGUAGE plpgsql;
-
--- Enable Row Level Security (optional - for production)
--- ALTER TABLE inventory_items ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE inventory_transactions ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE withdrawals ENABLE ROW LEVEL SECURITY;
--- ALTER TABLE receive_orders ENABLE ROW LEVEL SECURITY; 
+$$ LANGUAGE plpgsql; 
