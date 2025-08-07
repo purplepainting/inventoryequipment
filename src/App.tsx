@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, CssBaseline } from '@mui/material';
+import { ThemeProvider, CssBaseline, Box, Typography } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { theme } from './theme';
 import Layout from './components/Layout';
@@ -24,6 +24,16 @@ import TransactionHistory from './modules/transactions/pages/TransactionHistory'
 
 const queryClient = new QueryClient();
 
+// Simple fallback component for testing
+function TestComponent() {
+  return (
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4">App is Loading!</Typography>
+      <Typography variant="body1">If you can see this, the app is working.</Typography>
+    </Box>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -32,6 +42,9 @@ function App() {
         <Router>
           <Layout>
             <Routes>
+              {/* Test route */}
+              <Route path="/test" element={<TestComponent />} />
+              
               {/* Default route */}
               <Route path="/" element={<InventoryDashboard />} />
               
