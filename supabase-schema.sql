@@ -1,236 +1,165 @@
--- Drop existing triggers and functions first to avoid conflicts
-DROP TRIGGER IF EXISTS update_inventory_items_updated_at ON inventory_items;
-DROP TRIGGER IF EXISTS update_receive_orders_updated_at ON receive_orders;
-DROP TRIGGER IF EXISTS update_withdrawals_updated_at ON withdrawals;
-DROP TRIGGER IF EXISTS update_pricing_rules_updated_at ON pricing_rules;
-DROP TRIGGER IF EXISTS update_suppliers_updated_at ON suppliers;
-DROP TRIGGER IF EXISTS update_expense_reports_updated_at ON expense_reports;
-DROP TRIGGER IF EXISTS update_job_expenses_updated_at ON job_expenses;
+-- Enable RLS (Row Level Security)
+ALTER DATABASE postgres SET "app.settings.jwt_secret" TO 'your-jwt-secret';
 
-DROP FUNCTION IF EXISTS update_updated_at_column();
-DROP FUNCTION IF EXISTS decrease_inventory(UUID, INTEGER);
-DROP FUNCTION IF EXISTS increase_inventory(UUID, INTEGER);
-
--- Create tables for Inventory Module
-CREATE TABLE IF NOT EXISTS inventory_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  description TEXT NOT NULL,
-  paint_store TEXT NOT NULL,
-  item_number TEXT NOT NULL,
-  pack TEXT NOT NULL,
-  unit_price DECIMAL(10,2) NOT NULL DEFAULT 0,
-  quantity INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create profiles table
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+    email TEXT NOT NULL UNIQUE,
+    full_name TEXT,
+    role TEXT NOT NULL DEFAULT 'employee' CHECK (role IN ('admin', 'employee')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS inventory_transactions (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  inventory_item_id UUID REFERENCES inventory_items(id) ON DELETE CASCADE,
-  quantity INTEGER NOT NULL,
-  transaction_type TEXT NOT NULL CHECK (transaction_type IN ('receive', 'withdraw')),
-  notes TEXT,
-  job_name TEXT,
-  withdrawn_by TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create inventory_items table
+CREATE TABLE IF NOT EXISTS public.inventory_items (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    sku TEXT NOT NULL UNIQUE,
+    description TEXT,
+    current_stock INTEGER DEFAULT 0 NOT NULL,
+    minimum_stock INTEGER DEFAULT 0 NOT NULL,
+    unit_cost DECIMAL(10,2) NOT NULL,
+    unit TEXT NOT NULL DEFAULT 'each',
+    supplier TEXT,
+    category TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS receive_orders (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  order_date DATE NOT NULL,
-  supplier TEXT NOT NULL,
-  notes TEXT,
-  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create tools table
+CREATE TABLE IF NOT EXISTS public.tools (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    sku TEXT UNIQUE,
+    description TEXT,
+    location TEXT NOT NULL DEFAULT 'shop',
+    status TEXT NOT NULL DEFAULT 'available' CHECK (status IN ('available', 'in_use', 'maintenance')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS receive_order_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  receive_order_id UUID REFERENCES receive_orders(id) ON DELETE CASCADE,
-  inventory_item_id UUID REFERENCES inventory_items(id) ON DELETE CASCADE,
-  quantity INTEGER NOT NULL,
-  unit_price DECIMAL(10,2) NOT NULL,
-  total_price DECIMAL(10,2) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create projects table
+CREATE TABLE IF NOT EXISTS public.projects (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'archived')),
+    start_date DATE,
+    end_date DATE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS withdrawals (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  job_name TEXT NOT NULL,
-  withdrawn_by TEXT NOT NULL,
-  notes TEXT,
-  date DATE NOT NULL,
-  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create inventory_transactions table
+CREATE TABLE IF NOT EXISTS public.inventory_transactions (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    inventory_item_id UUID REFERENCES public.inventory_items(id) ON DELETE CASCADE NOT NULL,
+    project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+    quantity INTEGER NOT NULL,
+    unit_cost DECIMAL(10,2) NOT NULL,
+    total_cost DECIMAL(10,2) NOT NULL,
+    transaction_type TEXT NOT NULL CHECK (transaction_type IN ('checkout', 'restock')),
+    notes TEXT,
+    created_by UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS withdrawal_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  withdrawal_id UUID REFERENCES withdrawals(id) ON DELETE CASCADE,
-  inventory_item_id UUID REFERENCES inventory_items(id) ON DELETE CASCADE,
-  quantity INTEGER NOT NULL,
-  unit_price DECIMAL(10,2) NOT NULL,
-  total_price DECIMAL(10,2) NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+-- Create tool_movements table
+CREATE TABLE IF NOT EXISTS public.tool_movements (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    tool_id UUID REFERENCES public.tools(id) ON DELETE CASCADE NOT NULL,
+    project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+    from_location TEXT NOT NULL,
+    to_location TEXT NOT NULL,
+    movement_type TEXT NOT NULL CHECK (movement_type IN ('checkout', 'return', 'transfer')),
+    notes TEXT,
+    moved_by UUID REFERENCES public.profiles(id) ON DELETE CASCADE NOT NULL,
+    moved_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
--- Create tables for Pricing Module
-CREATE TABLE IF NOT EXISTS pricing_rules (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  item_id UUID REFERENCES inventory_items(id) ON DELETE CASCADE,
-  markup_percentage DECIMAL(5,2) NOT NULL,
-  minimum_price DECIMAL(10,2),
-  maximum_price DECIMAL(10,2),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Enable Row Level Security
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tools ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.tool_movements ENABLE ROW LEVEL SECURITY;
 
-CREATE TABLE IF NOT EXISTS item_categories (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,
-  description TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+-- Create policies
+CREATE POLICY "Users can view own profile" ON public.profiles
+    FOR SELECT USING (auth.uid() = id);
 
-CREATE TABLE IF NOT EXISTS suppliers (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  contact_person TEXT,
-  email TEXT,
-  phone TEXT,
-  address TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE POLICY "Users can update own profile" ON public.profiles
+    FOR UPDATE USING (auth.uid() = id);
 
-CREATE TABLE IF NOT EXISTS item_pricing (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  item_id UUID REFERENCES inventory_items(id) ON DELETE CASCADE,
-  supplier_id UUID REFERENCES suppliers(id) ON DELETE CASCADE,
-  cost_price DECIMAL(10,2) NOT NULL,
-  retail_price DECIMAL(10,2) NOT NULL,
-  markup_percentage DECIMAL(5,2) NOT NULL,
-  effective_date DATE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE POLICY "Authenticated users can view inventory" ON public.inventory_items
+    FOR SELECT TO authenticated USING (true);
 
--- Create tables for Transactions Module
-CREATE TABLE IF NOT EXISTS expense_reports (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  period_start DATE NOT NULL,
-  period_end DATE NOT NULL,
-  total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'draft',
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE POLICY "Authenticated users can manage inventory" ON public.inventory_items
+    FOR ALL TO authenticated USING (true);
 
-CREATE TABLE IF NOT EXISTS expense_items (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  expense_report_id UUID REFERENCES expense_reports(id) ON DELETE CASCADE,
-  description TEXT NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  category TEXT,
-  date DATE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE POLICY "Authenticated users can view tools" ON public.tools
+    FOR SELECT TO authenticated USING (true);
 
-CREATE TABLE IF NOT EXISTS transaction_summaries (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  period_start DATE NOT NULL,
-  period_end DATE NOT NULL,
-  total_received DECIMAL(10,2) NOT NULL DEFAULT 0,
-  total_withdrawn DECIMAL(10,2) NOT NULL DEFAULT 0,
-  total_expenses DECIMAL(10,2) NOT NULL DEFAULT 0,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE POLICY "Authenticated users can manage tools" ON public.tools
+    FOR ALL TO authenticated USING (true);
 
-CREATE TABLE IF NOT EXISTS expense_categories (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE,
-  description TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE POLICY "Authenticated users can view projects" ON public.projects
+    FOR SELECT TO authenticated USING (true);
 
-CREATE TABLE IF NOT EXISTS job_expenses (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  job_name TEXT NOT NULL,
-  expense_date DATE NOT NULL,
-  description TEXT NOT NULL,
-  amount DECIMAL(10,2) NOT NULL,
-  category TEXT,
-  notes TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
+CREATE POLICY "Authenticated users can manage projects" ON public.projects
+    FOR ALL TO authenticated USING (true);
 
--- Create indexes for better performance
-CREATE INDEX IF NOT EXISTS idx_inventory_items_description ON inventory_items(description);
-CREATE INDEX IF NOT EXISTS idx_inventory_transactions_item_id ON inventory_transactions(inventory_item_id);
-CREATE INDEX IF NOT EXISTS idx_inventory_transactions_type ON inventory_transactions(transaction_type);
-CREATE INDEX IF NOT EXISTS idx_withdrawals_job_name ON withdrawals(job_name);
-CREATE INDEX IF NOT EXISTS idx_withdrawals_date ON withdrawals(date);
-CREATE INDEX IF NOT EXISTS idx_receive_orders_date ON receive_orders(order_date);
-CREATE INDEX IF NOT EXISTS idx_expense_reports_period ON expense_reports(period_start, period_end);
-CREATE INDEX IF NOT EXISTS idx_job_expenses_job_name ON job_expenses(job_name);
+CREATE POLICY "Authenticated users can view transactions" ON public.inventory_transactions
+    FOR SELECT TO authenticated USING (true);
 
--- Create helper functions
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE POLICY "Authenticated users can create transactions" ON public.inventory_transactions
+    FOR INSERT TO authenticated WITH CHECK (true);
+
+CREATE POLICY "Authenticated users can view tool movements" ON public.tool_movements
+    FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Authenticated users can create tool movements" ON public.tool_movements
+    FOR INSERT TO authenticated WITH CHECK (true);
+
+-- Create function to handle updated_at
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-    NEW.updated_at = NOW();
+    NEW.updated_at = TIMEZONE('utc'::text, NOW());
     RETURN NEW;
-END;
-$$ language 'plpgsql';
-
--- Create triggers for updated_at columns
-CREATE TRIGGER update_inventory_items_updated_at BEFORE UPDATE ON inventory_items
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_receive_orders_updated_at BEFORE UPDATE ON receive_orders
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_withdrawals_updated_at BEFORE UPDATE ON withdrawals
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_pricing_rules_updated_at BEFORE UPDATE ON pricing_rules
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_suppliers_updated_at BEFORE UPDATE ON suppliers
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_expense_reports_updated_at BEFORE UPDATE ON expense_reports
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_job_expenses_updated_at BEFORE UPDATE ON job_expenses
-    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
--- Create inventory management functions
-CREATE OR REPLACE FUNCTION decrease_inventory(item_id UUID, amount INTEGER)
-RETURNS VOID AS $$
-BEGIN
-    UPDATE inventory_items 
-    SET quantity = quantity - amount 
-    WHERE id = item_id;
-    
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Inventory item not found';
-    END IF;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION increase_inventory(item_id UUID, amount INTEGER)
-RETURNS VOID AS $$
+-- Create triggers for updated_at
+CREATE TRIGGER handle_updated_at_profiles
+    BEFORE UPDATE ON public.profiles
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER handle_updated_at_inventory_items
+    BEFORE UPDATE ON public.inventory_items
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER handle_updated_at_tools
+    BEFORE UPDATE ON public.tools
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER handle_updated_at_projects
+    BEFORE UPDATE ON public.projects
+    FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+-- Create function to handle new user signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
 BEGIN
-    UPDATE inventory_items 
-    SET quantity = quantity + amount 
-    WHERE id = item_id;
-    
-    IF NOT FOUND THEN
-        RAISE EXCEPTION 'Inventory item not found';
-    END IF;
+    INSERT INTO public.profiles (id, email, full_name)
+    VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql; 
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Create trigger for new user signup
+CREATE TRIGGER on_auth_user_created
+    AFTER INSERT ON auth.users
+    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();

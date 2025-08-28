@@ -1,186 +1,137 @@
-# Paint Inventory Management System
+# Inventory & Equipment Management System
 
-A comprehensive inventory management system built with React, TypeScript, and Supabase, designed specifically for paint and construction materials tracking.
+A professional inventory and equipment management system designed specifically for painting companies. Built with Next.js, TypeScript, Tailwind CSS, and Supabase.
 
-## 🏗️ Architecture
+## Features
 
-The system is organized into three main modules:
+### 🏪 Inventory Management
+- Track supplies, primer materials, and sundries
+- SKU-based inventory with supplier information
+- Stock level monitoring with minimum stock alerts
+- Automatic reorder sheet generation
+- Cost tracking and expense allocation
 
-### 1. Inventory Management Module
-- **Dashboard**: Overview of inventory status, recent transactions, and low stock alerts
-- **Inventory List**: Add, edit, and manage inventory items
-- **Receive Order**: Process incoming inventory and update quantities
-- **Checkout Inventory**: Track outgoing inventory for jobs
-- **Reconcile Inventory**: Audit and adjust inventory levels
+### 🔧 Equipment Tracking
+- Tool location management across job sites
+- Equipment check-in/check-out system
+- Movement history and location tracking
+- Shop vs. job site organization
 
-### 2. Pricing & Items Module
-- **Pricing Dashboard**: Overview of pricing strategies and margins
-- **Item Management**: Manage item categories and specifications
-- **Supplier Management**: Track suppliers and their information
-- **Pricing Rules**: Configure markup percentages and pricing strategies
+### 📊 Project Management
+- Project-based expense tracking
+- Recurring project support
+- Cost allocation and reporting
+- Archive system for completed projects
 
-### 3. Transactions & Expenses Module
-- **Transaction Dashboard**: Overview of all financial transactions
-- **Expense Reports**: Generate and manage expense reports
-- **Job Expenses**: Track expenses by job/project
-- **Transaction History**: Complete audit trail of all transactions
+### 👥 User Management
+- Employee authentication system
+- Role-based access control
+- Activity tracking and audit trails
 
-## 🚀 Getting Started
+### 📈 Reporting & Analytics
+- Usage history and trends
+- Most-used items analysis
+- Tool location history
+- Expense reports for project billing
+
+## Technology Stack
+
+- **Frontend**: Next.js 14, React, TypeScript
+- **Styling**: Tailwind CSS
+- **Backend**: Supabase (PostgreSQL)
+- **Authentication**: Supabase Auth
+- **Deployment**: Vercel
+- **Version Control**: GitHub
+
+## Getting Started
 
 ### Prerequisites
-- Node.js (v16 or higher)
-- npm or yarn
-- Supabase account (for database)
+
+- Node.js 18+ installed
+- Supabase account
+- GitHub account
+- Vercel account (for deployment)
 
 ### Installation
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/purplepainting/inventorymanagement.git
-   cd inventorymanagement
-   ```
+1. Clone the repository:
+\`\`\`bash
+git clone https://github.com/purplepainting/inventoryequipment.git
+cd inventoryequipment
+\`\`\`
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+2. Install dependencies:
+\`\`\`bash
+npm install
+\`\`\`
 
-3. **Set up Supabase**
-   - Create a new Supabase project
-   - Run the SQL schema from `supabase-schema.sql` in your Supabase SQL editor
-   - Get your project URL and anon key from the API settings
+3. Set up environment variables:
+Create a \`.env.local\` file in the root directory:
+\`\`\`env
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+\`\`\`
 
-4. **Configure environment variables**
-   Create a `.env` file in the root directory:
-   ```env
-   VITE_SUPABASE_URL=your_supabase_url_here
-   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
-   ```
+4. Set up the database:
+Run the SQL commands in \`supabase-schema.sql\` in your Supabase SQL editor.
 
-5. **Start the development server**
-   ```bash
-   npm run dev
-   ```
+5. Start the development server:
+\`\`\`bash
+npm run dev
+\`\`\`
 
-6. **Open your browser**
-   Navigate to `http://localhost:5173`
+Open [http://localhost:3000](http://localhost:3000) to view the application.
 
-## 📁 Project Structure
+## Database Schema
 
-```
-src/
-├── modules/
-│   ├── inventory/
-│   │   ├── pages/          # Inventory management pages
-│   │   ├── services.ts     # Database operations
-│   │   └── types.ts        # TypeScript interfaces
-│   ├── pricing/
-│   │   ├── pages/          # Pricing management pages
-│   │   ├── services.ts     # Pricing operations
-│   │   └── types.ts        # Pricing interfaces
-│   └── transactions/
-│       ├── pages/          # Transaction pages
-│       ├── services.ts     # Transaction operations
-│       └── types.ts        # Transaction interfaces
-├── components/             # Shared UI components
-├── lib/                    # External service configurations
-└── theme.ts               # Material-UI theme configuration
-```
+The application uses the following main tables:
+- \`profiles\` - User authentication and roles
+- \`inventory_items\` - Inventory management
+- \`tools\` - Equipment tracking
+- \`projects\` - Project management
+- \`inventory_transactions\` - Inventory checkout/restock history
+- \`tool_movements\` - Tool location history
 
-## 🗄️ Database Schema
+## Deployment
 
-The system uses the following main tables:
+### Deploy to Vercel
 
-### Inventory Tables
-- `inventory_items`: Core inventory data
-- `inventory_transactions`: Transaction history
-- `receive_orders`: Incoming order records
-- `receive_order_items`: Items in receive orders
-- `withdrawals`: Outgoing inventory records
-- `withdrawal_items`: Items in withdrawals
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
 
-### Pricing Tables
-- `pricing_rules`: Markup and pricing rules
-- `item_categories`: Item categorization
-- `suppliers`: Supplier information
-- `item_pricing`: Historical pricing data
+### Database Setup
 
-### Transaction Tables
-- `expense_reports`: Generated expense reports
-- `expense_items`: Individual expense line items
-- `transaction_summaries`: Period summaries
-- `expense_categories`: Expense categorization
-- `job_expenses`: Job-specific expense tracking
+1. Create a new Supabase project
+2. Run the SQL schema from \`supabase-schema.sql\`
+3. Enable Row Level Security policies
+4. Configure authentication settings
 
-## 🔧 Features
+## Usage
 
-### Inventory Management
-- ✅ Add/Edit/Delete inventory items
-- ✅ Track quantities and unit prices
-- ✅ Receive incoming inventory
-- ✅ Checkout inventory for jobs
-- ✅ Transaction history logging
-- ✅ Low stock alerts
+### For Employees
+1. Register/login with company email
+2. Access inventory and tools from dashboard
+3. Process checkouts and track usage
+4. Generate reorder sheets when needed
 
-### Pricing Management
-- ✅ Configure pricing rules
-- ✅ Manage suppliers
-- ✅ Track cost vs retail pricing
-- ✅ Historical pricing data
+### For Administrators
+1. Manage inventory items and tools
+2. Create and manage projects
+3. View reports and analytics
+4. Manage user access and roles
 
-### Transaction Tracking
-- ✅ Generate expense reports
-- ✅ Track job-specific expenses
-- ✅ Transaction summaries
-- ✅ Export capabilities
-
-## 🛠️ Development
-
-### Available Scripts
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run lint` - Run ESLint
-- `npm run preview` - Preview production build
-
-### Adding New Features
-1. Create types in the appropriate module's `types.ts`
-2. Add services in the module's `services.ts`
-3. Create UI components in the module's `pages/` directory
-4. Update routing in `App.tsx`
-5. Add navigation items in `Layout.tsx`
-
-## 🔒 Security
-
-- Row Level Security (RLS) enabled on all tables
-- Environment variables for sensitive data
-- Input validation on all forms
-- Error handling throughout the application
-
-## 📊 Reporting
-
-The system provides comprehensive reporting capabilities:
-- Inventory valuation reports
-- Transaction summaries by period
-- Job expense reports
-- Supplier performance tracking
-- Low stock alerts
-
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+4. Submit a pull request
 
-## 📝 License
+## Support
 
-This project is licensed under the MIT License.
+For issues and questions, please create an issue in the GitHub repository.
 
-## 🆘 Support
+## License
 
-For support, please open an issue on GitHub or contact the development team.
-
----
-
-**Built with ❤️ for the painting industry** 
+This project is proprietary software for painting company operations.
