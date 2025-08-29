@@ -92,7 +92,7 @@ export default function InventoryPage() {
     return matchesSearch && matchesCategory
   })
 
-  const categories = [...new Set(items.map(item => item.category).filter(Boolean))]
+  const categories = Array.from(new Set(items.map(item => item.category).filter(Boolean) as string[]))
   const lowStockItems = items.filter(item => item.current_stock <= item.minimum_stock)
 
   if (loading) {

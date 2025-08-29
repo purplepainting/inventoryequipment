@@ -65,7 +65,7 @@ export default function ReportsPage() {
 
       // Process usage stats
       const usageMap: {[key: string]: UsageStats} = {}
-      usageData?.forEach(transaction => {
+      usageData?.forEach((transaction: any) => {
         const key = transaction.inventory_items.sku
         if (!usageMap[key]) {
           usageMap[key] = {
@@ -100,7 +100,7 @@ export default function ReportsPage() {
         .lte('created_at', dateRange.end + 'T23:59:59')
 
       const projectMap: {[key: string]: ProjectExpense} = {}
-      projectData?.forEach(transaction => {
+      projectData?.forEach((transaction: any) => {
         const key = transaction.projects.id
         if (!projectMap[key]) {
           projectMap[key] = {
@@ -121,7 +121,7 @@ export default function ReportsPage() {
 
       // Monthly usage
       const monthlyMap: {[key: string]: MonthlyUsage} = {}
-      usageData?.forEach(transaction => {
+      usageData?.forEach((transaction: any) => {
         const month = transaction.created_at.substring(0, 7) // YYYY-MM
         if (!monthlyMap[month]) {
           monthlyMap[month] = {

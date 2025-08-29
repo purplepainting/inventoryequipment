@@ -31,12 +31,13 @@ export default function ReorderPage() {
       const { data, error } = await supabase
         .from('inventory_items')
         .select('*')
-        .lte('current_stock', supabase.raw('minimum_stock'))
         .order('name')
 
       if (error) throw error
 
-      const itemsWithRecommendation = (data || []).map(item => ({
+      const lowStockItems = (data || []).filter(item => item.current_stock <= item.minimum_stock)
+      
+      const itemsWithRecommendation = lowStockItems.map(item => ({
         ...item,
         recommended_order: Math.max(
           item.minimum_stock * 2 - item.current_stock,
