@@ -240,9 +240,11 @@ export default function ProjectsPage() {
                 <div className="p-6">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">
-                        {project.name}
-                      </h3>
+                      <Link href={`/projects/${project.id}`}>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-1 hover:text-blue-600 cursor-pointer">
+                          {project.name}
+                        </h3>
+                      </Link>
                       {project.description && (
                         <p className="text-sm text-gray-600 line-clamp-2">
                           {project.description}

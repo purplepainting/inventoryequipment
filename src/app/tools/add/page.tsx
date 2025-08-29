@@ -1,13 +1,22 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Wrench, Save } from 'lucide-react'
 
+interface Project {
+  id: string
+  name: string
+  status: string
+}
+
 export default function AddToolPage() {
   const [loading, setLoading] = useState(false)
+  const [projects, setProjects] = useState<Project[]>([])
+  const [showNewProjectForm, setShowNewProjectForm] = useState(false)
+  const [newProjectName, setNewProjectName] = useState('')
   const [formData, setFormData] = useState({
     name: '',
     sku: '',
@@ -17,6 +26,54 @@ export default function AddToolPage() {
     status: 'available' as 'available' | 'in_use' | 'maintenance'
   })
   const router = useRouter()
+
+  useEffect(() => {
+    loadProjects()
+  }, [])
+
+  const loadProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('id, name, status')
+        .eq('status', 'active')
+        .order('name')
+
+      if (error) throw error
+      setProjects(data || [])
+    } catch (error) {
+      console.error('Error loading projects:', error)
+    }
+  }
+
+  const createNewProject = async () => {
+    if (!newProjectName.trim()) {
+      alert('Please enter a project name')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([{
+          name: newProjectName.trim(),
+          status: 'active'
+        }])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      const newProject = { id: data.id, name: data.name, status: data.status }
+      setProjects([...projects, newProject])
+      setFormData(prev => ({ ...prev, location: data.name }))
+      setNewProjectName('')
+      setShowNewProjectForm(false)
+    } catch (error: any) {
+      console.error('Error creating project:', error)
+      alert('Error creating project: ' + error.message)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -155,16 +212,65 @@ export default function AddToolPage() {
                 <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-2">
                   Initial Location *
                 </label>
-                <input
-                  type="text"
+                <select
                   id="location"
                   name="location"
                   value={formData.location}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    if (e.target.value === 'new_project') {
+                      setShowNewProjectForm(true)
+                    } else {
+                      setFormData(prev => ({ ...prev, location: e.target.value }))
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Enter location (e.g., shop, project name)"
                   required
-                />
+                >
+                  <option value="shop">Shop</option>
+                  {projects.map(project => (
+                    <option key={project.id} value={project.name}>
+                      {project.name}
+                    </option>
+                  ))}
+                  <option value="new_project">+ Add New Project</option>
+                </select>
+                
+                {showNewProjectForm && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-3">
+                    <h4 className="text-sm font-medium text-blue-900 mb-2">Create New Project</h4>
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={newProjectName}
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        placeholder="Enter project name"
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            createNewProject()
+                          }
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={createNewProject}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                      >
+                        Create
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewProjectForm(false)
+                          setNewProjectName('')
+                        }}
+                        className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>
