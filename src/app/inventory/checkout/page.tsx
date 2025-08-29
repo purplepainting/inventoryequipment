@@ -148,7 +148,7 @@ export default function CheckoutPage() {
       if (error) throw error
 
       // Add new project to the list and select it
-      const newProject = { id: data.id, name: data.name }
+      const newProject = { id: data.id, name: data.name, status: data.status }
       setProjects([...projects, newProject])
       setSelectedProject(data.id)
       setNewProjectName('')
