@@ -303,8 +303,8 @@ export default function ToolsPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="all">All Types</option>
-                {Array.from(new Set(tools.map(tool => tool.type).filter(Boolean) as string[])).map(type => (
-                  <option key={type} value={type}>
+                {Array.from(new Set(tools.map(tool => tool.type).filter(Boolean))).map(type => (
+                  <option key={type} value={type!}>
                     {type}
                   </option>
                 ))}

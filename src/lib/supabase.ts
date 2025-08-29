@@ -86,6 +86,7 @@ export type Database = {
           sku: string | null
           description: string | null
           location: string
+          type: string | null
           status: 'available' | 'in_use' | 'maintenance'
           created_at: string
           updated_at: string
@@ -96,6 +97,7 @@ export type Database = {
           sku?: string | null
           description?: string | null
           location?: string
+          type?: string | null
           status?: 'available' | 'in_use' | 'maintenance'
           created_at?: string
           updated_at?: string
@@ -106,6 +108,7 @@ export type Database = {
           sku?: string | null
           description?: string | null
           location?: string
+          type?: string | null
           status?: 'available' | 'in_use' | 'maintenance'
           created_at?: string
           updated_at?: string
