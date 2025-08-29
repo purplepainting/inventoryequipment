@@ -47,6 +47,8 @@ export default function CheckoutPage() {
   const [checkoutItems, setCheckoutItems] = useState<CheckoutItem[]>([])
   const [selectedProject, setSelectedProject] = useState('')
   const [notes, setNotes] = useState('')
+  const [showNewProjectForm, setShowNewProjectForm] = useState(false)
+  const [newProjectName, setNewProjectName] = useState('')
   const [loading, setLoading] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
   const router = useRouter()
@@ -125,6 +127,36 @@ export default function CheckoutPage() {
 
   const getTotalCost = () => {
     return checkoutItems.reduce((total, item) => total + item.total_cost, 0)
+  }
+
+  const createNewProject = async () => {
+    if (!newProjectName.trim()) {
+      alert('Please enter a project name')
+      return
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('projects')
+        .insert([{
+          name: newProjectName.trim(),
+          status: 'active'
+        }])
+        .select()
+        .single()
+
+      if (error) throw error
+
+      // Add new project to the list and select it
+      const newProject = { id: data.id, name: data.name }
+      setProjects([...projects, newProject])
+      setSelectedProject(data.id)
+      setNewProjectName('')
+      setShowNewProjectForm(false)
+    } catch (error: any) {
+      console.error('Error creating project:', error)
+      alert('Error creating project: ' + error.message)
+    }
   }
 
   const processCheckout = async () => {
@@ -324,7 +356,14 @@ export default function CheckoutPage() {
                     </label>
                     <select
                       value={selectedProject}
-                      onChange={(e) => setSelectedProject(e.target.value)}
+                      onChange={(e) => {
+                        if (e.target.value === 'new_project') {
+                          setShowNewProjectForm(true)
+                          setSelectedProject('')
+                        } else {
+                          setSelectedProject(e.target.value)
+                        }
+                      }}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       required
                     >
@@ -334,9 +373,46 @@ export default function CheckoutPage() {
                           {project.name}
                         </option>
                       ))}
+                      <option value="new_project">+ Add New Project</option>
                     </select>
                   </div>
 
+                  {showNewProjectForm && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-blue-900 mb-2">Create New Project</h4>
+                      <div className="flex space-x-2">
+                        <input
+                          type="text"
+                          value={newProjectName}
+                          onChange={(e) => setNewProjectName(e.target.value)}
+                          placeholder="Enter project name"
+                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              createNewProject()
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={createNewProject}
+                          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+                        >
+                          Create
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowNewProjectForm(false)
+                            setNewProjectName('')
+                          }}
+                          className="bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Notes
