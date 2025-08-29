@@ -124,13 +124,22 @@ export default function InventoryPage() {
                 Inventory Management
               </h1>
             </div>
-            <Link
-              href="/inventory/add"
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Item
-            </Link>
+            <div className="flex space-x-2">
+              <Link
+                href="/inventory/receive"
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center"
+              >
+                <Package className="w-4 h-4 mr-2" />
+                Receive Order
+              </Link>
+              <Link
+                href="/inventory/add"
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Item
+              </Link>
+            </div>
           </div>
         </div>
       </header>

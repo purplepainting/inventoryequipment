@@ -185,6 +185,14 @@ export default function Dashboard() {
             </div>
           </Link>
 
+          <Link href="/inventory/receive" className="group">
+            <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
+              <Package className="w-12 h-12 text-emerald-600 mb-4 group-hover:scale-110 transition-transform" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Receive Order</h3>
+              <p className="text-gray-600">Restock inventory from supplier orders and shipments.</p>
+            </div>
+          </Link>
+
           <Link href="/tools" className="group">
             <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
               <Wrench className="w-12 h-12 text-green-600 mb-4 group-hover:scale-110 transition-transform" />
