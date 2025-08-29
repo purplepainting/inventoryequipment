@@ -22,6 +22,7 @@ interface Tool {
   sku: string | null
   description: string | null
   location: string
+  type: string | null
   status: 'available' | 'in_use' | 'maintenance'
   created_at: string
   updated_at: string
@@ -39,6 +40,7 @@ export default function ToolsPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [locationFilter, setLocationFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
+  const [typeFilter, setTypeFilter] = useState('all')
   const router = useRouter()
 
   useEffect(() => {
@@ -149,8 +151,9 @@ export default function ToolsPage() {
     
     const matchesLocation = locationFilter === 'all' || tool.location === locationFilter
     const matchesStatus = statusFilter === 'all' || tool.status === statusFilter
+    const matchesType = typeFilter === 'all' || tool.type === typeFilter
 
-    return matchesSearch && matchesLocation && matchesStatus
+    return matchesSearch && matchesLocation && matchesStatus && matchesType
   })
 
   const getLocationOptions = () => {
@@ -242,7 +245,7 @@ export default function ToolsPage() {
 
         {/* Filters */}
         <div className="bg-white rounded-lg shadow p-6 mb-6">
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-4 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Search Tools
@@ -290,6 +293,23 @@ export default function ToolsPage() {
                 <option value="maintenance">Maintenance</option>
               </select>
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Filter by Type
+              </label>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="all">All Types</option>
+                {Array.from(new Set(tools.map(tool => tool.type).filter(Boolean))).map(type => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -331,8 +351,13 @@ export default function ToolsPage() {
                               SKU: {tool.sku}
                             </div>
                           )}
+                          {tool.type && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 mt-1 mr-2">
+                              {tool.type}
+                            </span>
+                          )}
                           {tool.description && (
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 mt-1">
                               {tool.description}
                             </div>
                           )}

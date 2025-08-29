@@ -13,6 +13,7 @@ export default function AddToolPage() {
     sku: '',
     description: '',
     location: 'shop',
+    type: '',
     status: 'available' as 'available' | 'in_use' | 'maintenance'
   })
   const router = useRouter()
@@ -106,6 +107,32 @@ export default function AddToolPage() {
                   placeholder="Enter SKU (optional)"
                 />
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="type" className="block text-sm font-medium text-gray-700 mb-2">
+                Tool Type
+              </label>
+              <select
+                id="type"
+                name="type"
+                value={formData.type}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Select tool type</option>
+                <option value="Ladders">Ladders</option>
+                <option value="Sprayers">Sprayers</option>
+                <option value="Air tools">Air tools</option>
+                <option value="Gas">Gas</option>
+                <option value="Washers">Washers</option>
+                <option value="Power tools">Power tools</option>
+                <option value="Hand tools">Hand tools</option>
+                <option value="Brushes">Brushes</option>
+                <option value="Rollers">Rollers</option>
+                <option value="Safety">Safety Equipment</option>
+                <option value="Misc">Miscellaneous</option>
+              </select>
             </div>
 
             <div>
